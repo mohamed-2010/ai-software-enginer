@@ -82,7 +82,7 @@ export default function SignInPage() {
           </CardFooter>
         </form>
          <CardFooter className="flex flex-col items-center text-sm">
-             Don&apos;t have an account?</p>
+             Don&apos;t have an account?
           <Button variant="link" onClick={() => router.push("/auth/signup")}>Sign Up</Button>
         </CardFooter>
       </Card>

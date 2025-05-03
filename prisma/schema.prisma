@@ -1,0 +1,124 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+// User model based on requirements and NextAuth needs
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  password      String? // Store hashed password if using credentials provider
+  role          UserRole  @default(USER) // Added user role
+  accounts      Account[]
+  sessions      Session[]
+
+  // SaaS specific fields
+  subscription   Subscription? // Relation to Subscription model
+  projects       Project[]     // Relation to Project model
+  usageRecords   Usage[]       // Relation to Usage model
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Account model for NextAuth
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? // Removed @db.Text for SQLite compatibility
+  access_token      String? // Removed @db.Text for SQLite compatibility
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? // Removed @db.Text for SQLite compatibility
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+// Session model for NextAuth
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// VerificationToken model for NextAuth email verification
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// Subscription model
+model Subscription {
+  id                      String    @id @default(cuid())
+  userId                  String    @unique // Each user has one subscription
+  user                    User      @relation(fields: [userId], references: [id])
+  planName                String    // e.g., "Free", "Pro", "Enterprise"
+  creditsMonthly          Int       // Total credits allocated per month by the plan
+  currentCreditBalance    Int?      // Current available credits for the user (managed by webhooks/deduction)
+  stripeCustomerId        String?   @unique // Stripe Customer ID
+  stripeSubscriptionId    String?   @unique // Stripe Subscription ID
+  stripePriceId           String?   // Stripe Price ID
+  stripeCurrentPeriodEnd  DateTime? // When the current subscription period ends
+  status                  String    // e.g., "active", "canceled", "past_due", "incomplete"
+  expiresAt               DateTime? // Optional: for trials or fixed terms
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Project model
+model Project {
+  id              String    @id @default(cuid())
+  userId          String
+  user            User      @relation(fields: [userId], references: [id])
+  title           String
+  description     String    // Removed @db.Text for SQLite compatibility
+  stackDetails    String    // Removed @db.Text for SQLite compatibility (Can store JSON or detailed text)
+  aiModelUsed     String
+  generatedZipUrl String?
+  status          String    // e.g., "pending", "generating", "completed", "failed"
+  usageRecords    Usage[]   // Relation to Usage model
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// Usage model
+model Usage {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  projectId   String   // Link usage to a specific project generation
+  project     Project  @relation(fields: [projectId], references: [id])
+  creditsUsed Int
+
+  createdAt DateTime @default(now())
+}
+

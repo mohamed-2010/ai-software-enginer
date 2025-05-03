@@ -111,14 +111,14 @@ describe("Stripe Webhook Handler (POST)", () => {
           subscription: "sub_test",
           customer: "cus_test",
           // ... other session properties
-        } as Stripe.Checkout.Session,
+        } as unknown as Stripe.Checkout.Session,
       },
     } as Stripe.Event;
 
     (stripe.webhooks.constructEvent as jest.Mock).mockReturnValue(mockEvent);
 
     // Mock dependencies for the handler
-    const mockSubscription = { id: "sub_test", items: { data: [{ price: { id: "price_pro_monthly" } }] }, status: "active", current_period_end: Math.floor(Date.now() / 1000) + 30*24*60*60 } as Stripe.Subscription;
+    const mockSubscription = { id: "sub_test", items: { data: [{ price: { id: "price_pro_monthly" } }] }, status: "active", current_period_end: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60 } as unknown as Stripe.Subscription;
     (stripe.subscriptions.retrieve as jest.Mock).mockResolvedValue(mockSubscription);
     const mockPlan = { name: "Pro Monthly", credits: 10 }; // Matched plan
     (findPlanByPriceId as jest.Mock).mockReturnValue(mockPlan);
@@ -154,14 +154,14 @@ describe("Stripe Webhook Handler (POST)", () => {
           customer: "cus_test",
           billing_reason: "subscription_cycle", // Important for renewal logic
           // ... other invoice properties
-        } as Stripe.Invoice,
+        } as unknown as Stripe.Invoice,
       },
     } as Stripe.Event;
 
     (stripe.webhooks.constructEvent as jest.Mock).mockReturnValue(mockEvent);
 
     // Mock dependencies for the handler
-    const mockSubscription = { id: "sub_test", items: { data: [{ price: { id: "price_pro_yearly" } }] }, status: "active", current_period_end: Math.floor(Date.now() / 1000) + 365*24*60*60 } as Stripe.Subscription;
+    const mockSubscription = { id: "sub_test", items: { data: [{ price: { id: "price_pro_yearly" } }] }, status: "active", current_period_end: Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60 } as unknown as Stripe.Subscription;
     (stripe.subscriptions.retrieve as jest.Mock).mockResolvedValue(mockSubscription);
     const mockPlan = { name: "Pro Yearly", credits: 120 }; // Matched plan
     (findPlanByPriceId as jest.Mock).mockReturnValue(mockPlan);
@@ -218,7 +218,7 @@ describe("Stripe Webhook Handler (POST)", () => {
   });
 
   it("should return 200 for unhandled event types", async () => {
-    const mockEvent = { type: "some.other.event", data: {} } as Stripe.Event;
+    const mockEvent = { type: "some.other.event", data: {} } as unknown as Stripe.Event;
     (stripe.webhooks.constructEvent as jest.Mock).mockReturnValue(mockEvent);
 
     const mockRequest = new NextRequest("http://localhost/api/webhooks/stripe", {

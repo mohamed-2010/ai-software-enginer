@@ -2,11 +2,22 @@
 "use client";
 
 import React, { useState } from "react";
-import { Project } from "@prisma/client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, RefreshCw, ChevronDown, ChevronUp } from "lucide-react"; // Icons
 import { regenerateProjectAction } from "@/app/actions/projectActions"; // Assuming action is created here
+
+type Project = {
+  id: string;
+  title: string;
+  description: string;
+  status: string;
+  stackDetails: string;
+  aiModelUsed: string;
+  generatedZipUrl?: string | null;
+  createdAt: Date;
+  userId: string;
+};
 
 interface ProjectListProps {
   projects: Project[];

@@ -16,7 +16,7 @@ interface CreateCheckoutSessionResponse {
 export async function createCheckoutSession(
   priceId: string
 ): Promise<CreateCheckoutSessionResponse> {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
 
   if (!session?.user?.id || !session?.user?.email) {
     return { error: "User not authenticated or email missing." };
@@ -33,8 +33,8 @@ export async function createCheckoutSession(
 
   // Construct the base URL for success/cancel redirects
   const headersList = headers();
-  const protocol = headersList.get("x-forwarded-proto") || "http";
-  const host = headersList.get("host") || "localhost:3000"; // Fallback for local dev
+  const protocol = (await headersList).get("x-forwarded-proto") || "http";
+  const host = (await headersList).get("host") || "localhost:3000"; // Fallback for local dev
   const baseUrl = `${protocol}://${host}`;
   const successUrl = `${baseUrl}/dashboard?session_id={CHECKOUT_SESSION_ID}`;
   const cancelUrl = `${baseUrl}/dashboard`; // Or a dedicated pricing/cancel page

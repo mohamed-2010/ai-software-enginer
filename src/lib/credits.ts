@@ -1,6 +1,5 @@
 // src/lib/credits.ts
 import { prisma } from "@/lib/prisma";
-import { Subscription } from "@prisma/client";
 
 /**
  * Calculates the user's current available credit balance within the current billing cycle.
@@ -105,7 +104,7 @@ export async function deductCredits(userId: string, projectId: string, amount: n
 
   try {
     // Use a transaction to ensure atomicity: check balance, update balance, create usage record
-    const result = await prisma.$transaction(async (tx) => {
+    const result = await prisma.$transaction(async (tx: { subscription: { findUnique: (arg0: { where: { userId: string; }; select: { id: boolean; currentCreditBalance: boolean; status: boolean; }; }) => any; update: (arg0: { where: { id: any; }; data: { currentCreditBalance?: { decrement: number; } | undefined; }; }) => any; }; usage: { create: (arg0: { data: { userId: string; projectId: string; creditsUsed: number; }; }) => any; }; }) => {
         // 1. Get current subscription and balance (assuming currentCreditBalance field exists)
         const subscription = await tx.subscription.findUnique({
             where: { userId: userId },

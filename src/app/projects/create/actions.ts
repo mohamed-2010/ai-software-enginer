@@ -6,7 +6,8 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { getServerSession } from "next-auth/next"
 import { generateCode, createProjectGenerationPrompt } from "@/lib/ai"
 import { getUserCreditBalance, deductCredits } from "@/lib/credits"; // Import credit functions
-import fs from "fs/promises";
+import * as fs from "fs";
+import * as fsPromises from "fs/promises";
 import path from "path";
 import archiver from "archiver";
 import { Writable } from "stream";
@@ -29,7 +30,7 @@ const PROJECT_GENERATION_COST = 1; // Define credit cost per project
 export async function createProjectAction(
   data: CreateProjectData
 ): Promise<{ error?: string; success?: boolean; projectId?: string }> {
-  const session = await getServerSession(authOptions)
+  const session = await getServerSession()
   const userId = session?.user?.id;
 
   if (!userId) {
@@ -78,12 +79,12 @@ export async function createProjectAction(
 
     // 3. Trigger the AI generation process (asynchronously)
     // Note: In a real app, this should be offloaded to a background job queue.
-    const generationResult = await generateProjectFiles(projectId, description, stackDetails, aiModelUsed, baseGenerationDir);
+    const generationResult = await generateProjectFiles(projectId ?? "", description, stackDetails, aiModelUsed, baseGenerationDir);
 
     if (generationResult.success && generationResult.zipPath) {
         // 4. Deduct credits *after* successful generation
         console.log(`[Credit Deduction] Attempting to deduct ${PROJECT_GENERATION_COST} credit(s) for user ${userId}, project ${projectId}...`);
-        const deductionSuccess = await deductCredits(userId, projectId, PROJECT_GENERATION_COST);
+        const deductionSuccess = await deductCredits(userId, projectId ?? "", PROJECT_GENERATION_COST);
         if (!deductionSuccess) {
             // This case is tricky: generation succeeded but deduction failed.
             // Log error, maybe flag project for review, but don't fail the user now.
@@ -103,7 +104,7 @@ export async function createProjectAction(
             },
         });
         console.log(`Project ${projectId} completed. Zip available at: ${generationResult.zipPath}`);
-        return { success: true, projectId: projectId };
+        return { success: true, projectId: projectId ?? "" };
     } else {
         // Generation failed, no credits deducted.
         throw new Error(generationResult.error || "Unknown generation error");
@@ -155,7 +156,7 @@ async function generateProjectFiles(
         }
 
         console.log(`[${projectId}] Writing files to ${projectDir}...`);
-        await fs.mkdir(projectDir, { recursive: true });
+        await fsPromises.mkdir(projectDir, { recursive: true });
 
         for (const file of generatedFiles) {
             const filePath = path.join(projectDir, file.path);
@@ -164,8 +165,8 @@ async function generateProjectFiles(
                 continue;
             }
             const dirName = path.dirname(filePath);
-            await fs.mkdir(dirName, { recursive: true });
-            await fs.writeFile(filePath, file.content);
+            await fsPromises.mkdir(dirName, { recursive: true });
+            await fsPromises.writeFile(filePath, file.content);
         }
         console.log(`[${projectId}] Finished writing files.`);
 
@@ -189,7 +190,7 @@ async function generateProjectFiles(
 
         try {
             console.log(`[${projectId}] Cleaning up temporary directory ${projectDir}...`);
-            await fs.rm(projectDir, { recursive: true, force: true });
+            await fsPromises.rm(projectDir, { recursive: true, force: true });
             console.log(`[${projectId}] Temporary directory cleaned up.`);
         } catch (cleanupError) {
             console.warn(`[${projectId}] Failed to clean up temporary directory ${projectDir}:`, cleanupError);
@@ -199,8 +200,8 @@ async function generateProjectFiles(
 
     } catch (error) {
         console.error(`[${projectId}] Error during file generation/zipping:`, error);
-        try { await fs.rm(projectDir, { recursive: true, force: true }); } catch (_) {}
-        try { await fs.unlink(zipPath); } catch (_) {}
+        try { await fsPromises.rm(projectDir, { recursive: true, force: true }); } catch (_) {}
+        try { await fsPromises.unlink(zipPath); } catch (_) {}
         return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
 }

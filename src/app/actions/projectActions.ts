@@ -9,7 +9,8 @@ import { getUserCreditBalance, deductCredits } from "@/lib/credits";
 // For now, let's assume it's accessible or we duplicate/refactor later.
 // We need a way to call the core generation logic. Let's import the necessary parts.
 import { generateCode, createProjectGenerationPrompt } from "@/lib/ai";
-import fs from "fs/promises";
+import * as fs from "fs";
+import * as fsPromises from "fs/promises";
 import path from "path";
 import archiver from "archiver";
 
@@ -44,7 +45,7 @@ async function generateProjectFilesForRegen(
         }
 
         console.log(`[${projectId}-Regen] Writing files to ${projectDir}...`);
-        await fs.mkdir(projectDir, { recursive: true });
+        await fsPromises.mkdir(projectDir, { recursive: true });
 
         for (const file of generatedFiles) {
             const filePath = path.join(projectDir, file.path);
@@ -53,13 +54,13 @@ async function generateProjectFilesForRegen(
                 continue;
             }
             const dirName = path.dirname(filePath);
-            await fs.mkdir(dirName, { recursive: true });
-            await fs.writeFile(filePath, file.content);
+            await fsPromises.mkdir(dirName, { recursive: true });
+            await fsPromises.writeFile(filePath, file.content);
         }
         console.log(`[${projectId}-Regen] Finished writing files.`);
 
         // Ensure old zip is removed before creating new one
-        try { await fs.unlink(zipPath); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; }
+        try { await fsPromises.unlink(zipPath); } catch (e) { if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e; }
 
         console.log(`[${projectId}-Regen] Creating ZIP archive at ${zipPath}...`);
         await new Promise<void>((resolve, reject) => {
@@ -81,7 +82,7 @@ async function generateProjectFilesForRegen(
 
         try {
             console.log(`[${projectId}-Regen] Cleaning up temporary directory ${projectDir}...`);
-            await fs.rm(projectDir, { recursive: true, force: true });
+            await fsPromises.rm(projectDir, { recursive: true, force: true });
             console.log(`[${projectId}-Regen] Temporary directory cleaned up.`);
         } catch (cleanupError) {
             console.warn(`[${projectId}-Regen] Failed to clean up temporary directory ${projectDir}:`, cleanupError);
@@ -91,7 +92,7 @@ async function generateProjectFilesForRegen(
 
     } catch (error) {
         console.error(`[${projectId}-Regen] Error during file generation/zipping:`, error);
-        try { await fs.rm(projectDir, { recursive: true, force: true }); } catch (_) {}
+        try { await fsPromises.rm(projectDir, { recursive: true, force: true }); } catch (_) {}
         // Don't delete the potentially existing old zip on regen failure
         return { success: false, error: error instanceof Error ? error.message : String(error) };
     }
@@ -100,8 +101,8 @@ async function generateProjectFilesForRegen(
 export async function regenerateProjectAction(
   projectId: string
 ): Promise<{ error?: string; success?: boolean }> {
-  const session = await getServerSession(authOptions);
-  const userId = session?.user?.id;
+  const session = await getServerSession(authOptions as any);
+  const userId = (session as any)?.user?.id;
 
   if (!userId) {
     return { error: "User not authenticated" };

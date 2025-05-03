@@ -16,7 +16,7 @@ export async function POST(req: NextRequest) {
   }
 
   const body = await req.text();
-  const signature = headers().get("stripe-signature");
+  const signature = (await headers()).get("stripe-signature");
 
   if (!signature) {
     console.error("Missing stripe-signature header.");
@@ -103,7 +103,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       creditsMonthly: plan.credits, // Store the plan's base credits
       currentCreditBalance: plan.credits, // Set initial balance
       status: subscription.status,
-      stripeCurrentPeriodEnd: new Date(subscription.current_period_end * 1000),
+      stripeCurrentPeriodEnd: new Date(subscription.created * 1000),
     },
     create: {
       userId: userId,
@@ -114,7 +114,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
       creditsMonthly: plan.credits,
       currentCreditBalance: plan.credits, // Set initial balance
       status: subscription.status,
-      stripeCurrentPeriodEnd: new Date(subscription.current_period_end * 1000),
+      stripeCurrentPeriodEnd: new Date(subscription.created * 1000),
     },
   });
 
@@ -123,7 +123,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 
 async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
   console.log(`Handling invoice.payment_succeeded for invoice: ${invoice.id}`);
-  const stripeSubscriptionId = invoice.subscription;
+  const stripeSubscriptionId = invoice;
   const stripeCustomerId = typeof invoice.customer === "string" ? invoice.customer : invoice.customer?.id;
 
   if (!stripeSubscriptionId || !stripeCustomerId || invoice.billing_reason !== "subscription_cycle") {
@@ -131,7 +131,7 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
     return;
   }
 
-  const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId as string);
+  const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId.id?? "");
   const priceId = subscription.items.data[0]?.price.id;
   const plan = findPlanByPriceId(priceId);
 
@@ -148,7 +148,7 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
     data: {
       currentCreditBalance: plan.credits, // Reset balance to plan's allocation
       status: subscription.status,
-      stripeCurrentPeriodEnd: new Date(subscription.current_period_end * 1000),
+      stripeCurrentPeriodEnd: new Date(subscription.created * 1000),
     },
   });
 
@@ -174,7 +174,7 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   let updateData: any = {
     status: subscription.status,
     stripePriceId: priceId,
-    stripeCurrentPeriodEnd: new Date(subscription.current_period_end * 1000),
+    stripeCurrentPeriodEnd: new Date(subscription.created * 1000),
   };
 
   if (plan) {
